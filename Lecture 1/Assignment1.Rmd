@@ -1,0 +1,96 @@
+---
+title: "Assignment 1 - 1 Intro R"
+author: "Rushabh Barbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Create R chunks to display both the output and code in this file. For each of the following sections, create the code to answer the question and output the answer (if necessary).
+
+#	Make a vector of numbers. 
+    o	Use the rep or seq function.
+    o	Include a concatenate c().
+
+```{r vector}
+vector1 = rep(0, 10)
+cat("repeat --> ", vector1)
+vector2 = seq(1,10,1)
+cat("sequence --> ", vector2)
+vector3 = c(vector1, vector2)
+cat("concat --> ", vector3)
+```
+
+
+#	Use the length() function to figure out how long your vector is.
+```{r len}
+cat("Length of the vector1 variable --> ", length(vector1))
+cat("Length of the vector2 variable --> ", length(vector2))
+cat("Length of the vector3 variable --> ", length(vector3))
+```
+
+
+#	Make a matrix at least 5 by 5. 
+    o	Pull out the value for row 2 column 3.
+```{r Matrix}
+mat1 = matrix(0, 5, 5)
+diag(mat1) = 1
+mat1
+
+cat("value for row 2 column 3 --> ", mat1[2,3])
+```
+
+
+#	Use the head() function to look at the dataset USArrests. 
+    o	Calculate a summary of USArrests.
+```{r dataset}
+USArrests <- read.csv("1 intro R.csv")
+head(USArrests)
+```
+
+#	Import a data set (attached). 
+    o	Recode all the values to LEFT and RIGHT in the whichhand column.
+    o	Create a summary of the dataset.
+    o	Exclude all navalues in the dataset.
+    o	Create a dataset with only LEFT handed participants.
+    o	Calculate the correlation table of just the following variables: LR_switch, finger_switch, rha, word_length, letter_freq
+
+```{r recode}
+# levels(USArrests$whichhand)
+# rep("Right", 7)
+USArrests$whichhand = factor(USArrests$whichhand,
+                   levels = c("", "left", "Left", "right", "Right", "RIGHT", "right ", "Right ",
+                        "right hand", "Right.", "right_left", "with Cap letter"),
+                   labels = c(NA, "Left", "Left", "Right", "Right", "Right", "Right", "Right", 
+                              "Right", "Right", "Both", NA))
+USArrests$whichhand = droplevels(USArrests$whichhand)
+# Thank you for this technique Professor
+summary(USArrests)
+
+cat("Dimensions With NA Values: ", dim(USArrests))
+USArrests = na.omit(USArrests)
+cat("Dimensions Without NA Values: ", dim(USArrests))
+
+leftOnly = USArrests[USArrests$whichhand == "Left",]
+summary(leftOnly)
+
+cor(USArrests[8:12])
+#cor(USArrests[8:12], use = "pairwise.complete.obs") This gave the same result as above
+```
+
+
+#	Bonus: 
+    o	Run a regression using the following: lm(rating~finger_switch, data=data) **or whatever you called the data
+    o	Save the output of the regression.
+    o	Pull out only the slope from the coefficients.
+    
+```{r regression}
+reg = lm(rating ~ finger_switch, data = USArrests)
+reg$coefficients
+reg$coefficients[1]
+reg$coefficients[2]
+```
+
