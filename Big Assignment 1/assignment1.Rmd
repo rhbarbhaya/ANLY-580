@@ -1,0 +1,317 @@
+---
+title: "Assignment 1: Data Screening and EFA"
+author: "Rushabh Barbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Screening and EFA Assignment
+
+In this section, import the libraries you will use to complete this assignment. 
+
+```{r libraryImport, message=FALSE, warning=FALSE}
+library(mice)
+library(corrplot)
+library(rio)
+library(psych)
+library(GPArotation)
+```
+
+## Abstract:
+
+Research in past decades has underscored the importance of body dissatisfaction (BD) in the development and maintenance of disordered eating and health practices (e.g., restrictive eating, exercise habits). Given that 90% of individuals with eating disorders are female, research has focused primarily on female BD. However, male BD has increased sharply over the past decade, and has been linked to maladaptive health behaviors (e.g., steroid use, excessive exercise). Although the presentation of BD contrasts greatly between males and females, many current measures do not delineate between features of male and female BD and are not sensitive to core features of male BD (e.g., muscularity and bulk). Measures specified for males attempt to focus on these core features, but incorrectly assume that these features are equally important for all males. Therefore, this study provided an evaluation of four measures of male BD using item response theory to provide an alternative method of analysis and scoring for a more complete picture of male BD. 841 participants completed the study. By examining the response patterns in the data, the following research questions were answered: 1) What is the level of discriminability of each item and which are the most informative? 2) Are there item biases along the spectrum of BD? 3) Are these scales equivalent measures of BD and are equivalent short-form measures possible? Results also provided evidence for future research on developing a computer-adaptive test (CAT) for BD.
+
+## Data:
+
+Question group 1: Participants rate these questions from 1 (extremely dissatisfied) to 5 (extremely satisfied) about different body parts. 
+
+1.	Weight
+2.	Leanness of shoulders
+3.	Leanness of arms (e.g., biceps/triceps)
+4.	Muscularity of arms (e.g., biceps/triceps)
+5.	Leanness of stomach/abdomen
+6.	Muscularity of stomach/abdomen
+7.	Leanness of chest/upper torso
+8.	Muscularity of chest/upper torso
+9.	Leanness of back
+10.	Muscularity of back
+11.	Muscularity of neck
+12.	Overall body build
+13.	Overall leanness of body
+14.	Overall level of body's muscularity
+
+Question group 2: Participants rate these questions from 1 (never) to 5 (always) about how they feel about their bodies.
+
+15.	I think my body should be leaner
+16.	I am concerned that my stomach is too flabby
+17.	I feel dissatisfied with my overall body build
+18.	I think I have too much fat on my body
+19.	I think my abs are not thin enough
+20.	Has eating sweets, cakes, or other high calorie food made you feel fat or weak?
+21.	Have you felt excessively large and rounded (i.e., fat)?
+22.	Have you felt ashamed of your body size or shape?
+23.	Has seeing your reflection (e.g., in a mirror or window) made you feel badly about your size or shape?
+24.	Have you been so worried about your body size or shape that you have been feeling that you ought to diet?
+25.	I think my body should be leaner
+26.	I think I have too much fat on my body
+27.	Eating sweets, cakes, or other high calorie foods makes me feel fat
+28.	I feel excessively fat
+29.	Seeing my reflection (e.g., in a mirror or window) makes me feel badly about my body fat
+
+Question group 3: Participants rate these items from 1 (strongly agree) to 5 (strongly disagree) about how they feel about their bodies. 
+
+30.	I am happy with how much muscle I have compared to how much fat I have
+31.	Other people think I have a good body
+32.	I am a good weight for my height
+33.	I am hesitant to take my shirt off in public because people will look at my body
+34.	I have thoughts of dissatisfaction towards my body
+35.	I think I have a generally attractive body
+36.	My body looks healthy
+37.	The shape of my body is one of my assets
+38.	My body is sexually appealing to others
+
+In this section, import the data provided on Canvas.
+
+```{r}
+df = read.csv("assignment1_data.csv")
+```
+
+## Data screening: 
+
+### Accuracy:
+
+- Check for typos and problems with the dataset - `summary()` or `table()`. Show that the data has scores that are accurate or that are inaccurate. 
+- Fix any typos in the data by deleting only that point.
+
+```{r}
+# names(df)
+summary(df)
+```
+
+- Reverse code question 1 group so that high scores on these items indicate body dissatisfaction. An example of the reverse coding is provided for you. Fill in `DF` and `COLUMNS` with your dataframe and column numbers for question group 1.
+
+```{r}
+# Example, edit the DF and COLUMN names here 
+# DF[ , COLUMNS] = 6 - DF[ , COLUMNS]
+df [, 2] = 6 - df[, 2]
+```
+
+### Missing data:
+
+- Include a table that shows the missing data by person (table of missingness by participant). Don't forget this means you need to create your `percentmiss` function and use `apply()` to create those `missing` scores.
+
+```{r}
+percentmiss = function(x) {
+  sum(is.na(x))/length(x)*100
+}
+missing = apply(df[-1], 1, percentmiss)
+table(missing)
+```
+
+- Exclude participants who are missing too much data from the rest of the analysis - you are creating `replacerows`, no need to create `norows`. 
+
+```{r}
+replacerows = subset(df, missing <= 5)
+nomiss = subset(df, missing <= 5)
+summary(replacerows)
+```
+
+- Include the percent/proportion of data missing by variable. You will not need the `Participant_ID` for this analysis, so you can drop it from the dataset.
+
+```{r}
+colmissing = apply(df[-1], 2, percentmiss)
+table(colmissing)
+replacecol = subset(df, colmissing <= 5)
+```
+
+- Run mice to replace the data when appropriate. You do not need to merge it back with the participants who had too much missing data or the `Participant_ID` column. 
+- Include a `summary` of the data to show the missing data has been replaced.
+
+```{r miceOP, results='hide'}
+tempNoMissCol = mice(replacecol)
+tempNomissRow = mice(replacerows)
+```
+```{r}
+summary(tempNoMissCol)
+summary(tempNomissRow)
+```
+
+
+### Outliers
+
+- Create Mahalanobis distance scores with the `mahalanobis` function. 
+- Include a `summary` of the number of outliers (true/false table). 
+- Exclude all multivariate outliers - `subset()`. 
+
+```{r}
+mahal = mahalanobis(nomiss[,-1],
+                    colMeans(nomiss[,-1], na.rm = T),
+                    cov(nomiss[,-1]), use = "pairwise.complete.obs")
+ncol(nomiss[-1])
+cutoff = qchisq(1-.001, ncol(nomiss[-1]))
+cutoff
+table(mahal < cutoff)
+# noout = subset(nomiss, mahal < cutoff)
+```
+
+### Additivity
+
+Include a `corrplot` to determine if any of the questions are too highly correlated. 
+
+```{r}
+nomiss = na.omit(nomiss)
+correlation = cor(nomiss[, -1])
+# symnum(correlation)
+corrplot(correlation)
+```
+
+QUESTION: Do you appear to meet the assumption of additivity? Be sure to say more than yes or no, explain how you came to that conclusion. 
+
+ANSWER: There are some high correlations but no too high for Additivity. Additivity assumption is not met.
+
+### Assumptions Set Up
+
+- Create a `random` variable using the `rchisq()` function.
+- Create a `fake` regression using the data to predict your new random variable. 
+- From this regression, calculate the `standardized` residuals and the `fittedvalues` to use below for assumptions checks. 
+
+```{r}
+random = rchisq(nrow(nomiss), 7)
+fake = lm(random ~., data = nomiss[,-1])
+standardized = rstudent(fake)
+fitted = scale(fake$fitted.values)
+```
+
+### Normality
+
+- Use the `plot()` function on your `standardized` residuals.
+
+```{r}
+hist(standardized)
+```
+
+QUESTION: Do you appear to meet the assumption of normality? Be sure to say more than yes or no, explain how you came to that conclusion. 
+
+ANSWER: Data is normal between the values of -2 and 2. Therefore, it can be concluded that the data is normal. Somewhat skewed but normal.
+
+### Linearity
+
+- Include the QQ plot for linearity using either `plot()` or `qqnorm()`.
+
+```{r}
+qqnorm(standardized)
+abline(0,1)
+```
+
+QUESTION: Do you appear to meet the assumption of linearity? Be sure to say more than yes or no, explain how you came to that conclusion. Yes. Most of the data is on the normal line. Some data points on the not close to the line. But overall, the assumption of Linearity is met.
+
+ANSWER: 
+
+### Homogeneity and Homoscedasticity
+
+- Include a residual scatterplot of the data with `abline()` for vertical and horizontal at 0.
+
+```{r}
+plot(fitted, standardized)
+abline(0,0)
+abline(v = 0)
+```
+
+QUESTION: Do you appear to meet the assumption of homogeneity and homoscedasticity? Be sure to say more than yes or no, explain how you came to that conclusion. 
+
+ANSWER: No. The data is spead out and no apparent pattern can be observed. Therefore, it can be concluded that the assumption for homogeneity and homoscedasticity is not met.
+
+## EFA
+
+### Number of factors:
+
+- Theory suggests two factors. 
+- Include the sum of the eigenvalues for both Kaiser criterions.
+
+```{r}
+
+```
+
+- Include the `fa.parallel` analysis to see the scree plot and parallel analysis. 
+
+```{r}
+number_items <- fa.parallel(nomiss, fm="ml", fa="fa")
+sum(number_items$fa.values > 1) # Old Kaiser
+sum(number_items$fa.values > .7) # New Kaiser
+```
+
+QUESTION: What do the different criterion's suggest you should examine for the number of factors? 
+
+ANSWER: 3 or 4 factors.
+
+### Simple structure:
+
+- Calculate the factor analysis `fa` with two factors, maximum likelihood as the fitting estimation, and direct oblim as the rotation. 
+
+```{r}
+EFA_fit <- fa(nomiss[, -1], nfactors = 2, rotate = "oblimin", fm = "ml")
+EFA_fit
+```
+
+- Remove any items that do not load on either factor or load on both factors. You may need to examine the `fa` output several times to come up with a final model. 
+
+```{r}
+EFA_fit2 = fa(nomiss[, -c(1,2,6,14,18,31,32,34:39)], nfactors = 2, rotate = "oblimin", fm = "ml")
+EFA_fit2
+```
+
+QUESTION: What is the logic of excluding items that do not achieve simple structure?
+
+ANSWER: Exclude values when over 0.3 and -0.3 or values both under 0.3 and -0.3
+
+### Adequate solution:
+
+- Include the fit indices (RMSEA + CI, RMSR, CFI, TLI).
+
+```{r}
+EFA_fit2$RMSEA #Okay range.
+EFA_fit2$rms #Good range.
+EFA_fit2$TLI #Bad range.
+1 - ((EFA_fit2$STATISTIC-EFA_fit2$dof)/(EFA_fit2$null.chisq-EFA_fit2$null.dof)) #Bad Range.
+```
+
+QUESTION: Describe the fit indices. What do they indicate about your final EFA model? 
+
+ANSWER: Some indices are good. Some are bad.
+
+- Include the reliabilities for each factor with `alpha` - remember to use `psych::alpha` if you see a color error warning. 
+
+```{r}
+factor1 = c(3:5, 7:13, 15)
+factor2 = c(16, 17, 19:30, 33)
+psych::alpha(nomiss[, factor1], check.keys = T)
+psych::alpha(nomiss[, factor2], check.keys = T)
+```
+
+QUESTION: What do the reliabilities indicate about our factors? Remember that over .70 is often considered an acceptable criterion.
+
+ANSWER: 
+
+- Include a plot of the final model with `fa.plot` or `fa.diagram`. 
+
+```{r}
+fa.plot(EFA_fit2, labels = colnames(nomiss[ , -23]))
+fa.diagram(EFA_fit2)
+```
+
+QUESTION: Try to give the two factors a label. What do they appear to measure? 
+
+ANSWER: There are 2 clear groups. Actal Build Structure and Desired Build Structure.
+
+## Overall Thoughts
+
+QUESTION: Given the overall picture of the results from your analysis, what would you recommend with this scale development? For this question, assume you are an analyst that has been hired by a research group that wants to use this scale for measuring body dissatisfaction. Does the model support using this scale in such a way? Should you test more models for comparison? What else might you use to help support your decisions? 
+
+NOTE: There are a lot of right answers to this question. The goal is to have you think more broadly about what the analysis implies overall, rather than individual specific parts of the analysis. 
+
+ANSWER: From the given model we can measure the satisfaction with individuals current body type, also, their desired body type. Making a comparative study will help the analyst measure the true satisfaction level.
+There will always be a better model, viz., a model where current body structure is compared with other's structure and measure the "satisfaction index" on that. A line has to be drawn somewhere. This model is close enough to get the desired outcome.
