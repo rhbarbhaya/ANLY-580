@@ -1,0 +1,241 @@
+---
+title: 'Assignment 2: Path Analysis'
+author: "Rushabh Barbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Path Analysis Assignment
+
+The included dataset (assignment2_data.csv) includes many demographic and motivational variables predicting student's withdrawal rates for their first year of college. You will set up and test a path model predicting withdrawal for students. 
+
+Some example ideas:
+
+  - Demographics > satisfaction or commitment > intentions to quit > withdrawal
+  - Demographics >  student success > intentions to quit > withdrawal
+  - Demographics > semester or career goals > intentions to quit > withdrawal
+  - Other combinations of included variables. Try at least four variables predicting withdrawal with at least 3 points (something > something > withdrawal - they cannot all predict withdrawal separately).
+
+## Variables:
+
+  -	Subject number
+  -	Age
+  -	ACT self-report
+  -	Gender (1 = male, 2 = female)
+  -	Declared a major (0 = no, 1 = yes)
+  -	High School GPA
+  -	Married (0 = no, 1 = yes, exclude the 3s)
+  -	Instate/out (0 = outstate, 1 = instate, exclude the 3s)
+  -	Class Year (freshman through senior+)
+  -	Campus Job (0 = no, 1 = yes)
+  -	Academic scholarship (0 = no, 1 = yes)
+  -	Other scholarship (0 = no, 1 = yes)
+  -	Number of older siblings
+  -	Number of younger siblings
+  -	Parents married (no, yes, divorces)
+  -	Combined parent income (keep as continuous, ranges from 15K to 200K)
+  -	Father education (keep as continuous, ranges from some high school to Ph.D.)
+  -	Mother education (keep as continuous, ranges from some high school to Ph.D.)
+  -	Academic Self Efficacy
+  -	Intrinsic Motivation
+  -	Integration
+  -	Identification
+  -	Introjection
+  -	External Regulation
+  -	Amotivation
+  -	Relative Autonomy
+  -	Affective commitment + Calculative Commitment
+  -	Search Behavours + Intent to Search + Intent to Quit
+  -	Satisfaction with MSU + Satisfaction Extra Curriculars
+  -	Hours attempted semester 1
+  -	Hours completed semester 1
+  -	SEM GPA semester 1
+  -	Cumulative GPA semester 1
+  -	Withdrawal (THE DV!,  0 - stayed, 1 - withdrew, exclude all others)
+  -	Semester goals - a combination of goals about the student's semester
+  -	Career goals - a combination of goals about the student's career path
+
+Load the libraries and dataset below. 
+
+```{r message=FALSE, warning=FALSE}
+library(lavaan)
+library(semPlot)
+library(dplyr)
+
+data = read.csv('assignment2_data.csv')
+```
+
+## Data Reduction
+
+Subset the data to include only the variables you are interested in using. 
+
+```{r}
+dataset = data[, c(2, 4, 6, 8, 11, 12, 15, 19, 20, 24, 26, 28, 32, 34)]
+dataset = dataset %>% 
+  filter(stateres != 3)
+# dataset = droplevels(dataset)
+summary(dataset)
+```
+
+## Short Data Screening
+
+### Accuracy
+
+We can assume the data is mostly accurate. You should first exclude the precollege students from the withdrawal variable (i.e., anything not 0 or 1).
+
+```{r}
+dataset = dataset %>% 
+  filter(WITHDRAWAL_SEM2 != 2)
+# dataset = droplevels(dataset)
+summary(dataset)
+```
+
+### Missing data
+
+Because we are using a small number of variables, we will not have any missing data to replace. You should exclude participants with any missing data. 
+
+```{r}
+#summary(data)
+noMiss = na.omit(dataset)
+summary(noMiss)
+```
+
+### Outliers 
+
+- Create the Mahalanobis distance scores.
+- Create a table of the number of outliers you have.
+- Exclude all multivariate outliers. 
+
+QUESTION: Looking at your final sample size, do you think you have an adequate sample for your model?
+ANSWER: There are 408 samples. More samples would have been better as they account for all the possible combinations in the dataset.
+
+## Build Your Model
+
+Using lavaan syntax, build the model of your prediction for withdrawal. 
+
+```{r}
+mahal = mahalanobis(noMiss[, -1],
+                    colMeans(noMiss[, -1], na.rm = T),
+                    cov(noMiss[, -1]), use = "pairwise.complete.obs")
+ncol(noMiss[, -1])
+cutoff = qchisq(1-.001, ncol(noMiss[, -1]))
+cutoff
+table(mahal < cutoff)
+noOut = subset(noMiss, mahal < cutoff)
+summary(noOut)
+```
+
+QUESTION: What are the total number of parameters you could estimate given the number of measured variables in your model?
+ANSWER: 33 free parameters
+
+QUESTION: What are the parameters that you are going to estimate? List them out below.
+ANSWER: Age, Gender, HighSchool GPA, In/Outstate, academic scholarship, other scholarships, parents married, Academic Self Efficacy, Intrinsic Motivation, External Regulation, Relative Autonomy, Intent to Quit, SEM GPA semester 1, Withdrawal flag
+
+QUESTION: Given your parameters, what are the degrees of freedom for your model? 
+ANSWER: 56 degrees of freedom
+
+## Analyze Your Model
+
+Use the `sem()` function to analyze your model. 
+
+```{r}
+model.cor = cor(noOut)
+model.cor
+model = '
+Demo =~ Age + gender + stateres + pardivorced
+StuSuccess =~ HSGPA + acdschol + scholother + SE_ACADEMIC1 + SEM_GPA_SEM1
+IntQuit =~ SD_INT1 + SD_EXTREG1 + SD_RELAUT1 + INTENTIONS_Combine
+WITHDRAWAL_SEM2 ~ Demo + StuSuccess + IntQuit
+'
+model.fit = sem(model, data = model.cor)
+```
+
+## Summarize Your Model
+
+Include a `summary()` of your model with the standardized output, fit.measures, and rsquare options. 
+
+```{r}
+summary(model.fit, standardized = T, fit.measures = T, rsquare = T)
+```
+
+## Diagram Your Model
+
+Include a diagram of your model with `par` estimates and increasing the font size for the labels. 
+
+```{r}
+semPaths(model.fit, whatLabels = "par", edge.label.cex = 1, layout = "spring")
+```
+
+## Model Improvement
+
+Create a second model that either deletes a path in the original model or adds a new potential path to the model (just one path, no new variables!). 
+
+```{r}
+model2.cor = cor(noOut[,-c(7)])
+model2.cor
+model2 = '
+Demo =~ Age + gender + stateres
+StuSuccess =~  HSGPA + acdschol + scholother + SE_ACADEMIC1 + SEM_GPA_SEM1
+IntQuit =~ SD_INT1 + SD_EXTREG1 + SD_RELAUT1 + INTENTIONS_Combine
+WITHDRAWAL_SEM2 ~ Demo + StuSuccess + IntQuit
+'
+model2.fit = sem(model2, data = model2.cor)
+
+model3.cor = cor(noOut)
+model3.cor
+model3 = '
+StuSuccess =~  HSGPA + acdschol + scholother + SE_ACADEMIC1 + SEM_GPA_SEM1
+IntQuit =~ SD_INT1 + SD_EXTREG1 + SD_RELAUT1 + INTENTIONS_Combine
+WITHDRAWAL_SEM2 ~ StuSuccess + IntQuit
+'
+model3.fit = sem(model3, data = model3.cor)
+```
+
+## Analyze, Summarize
+
+Include the `sem()` and `summary()` functions in this section for your second model.
+
+```{r}
+summary(model2.fit, standardized = T, fit.measures = T, rsquare = T)
+summary(model3.fit, standardized = T, fit.measures = T, rsquare = T)
+```
+
+## Diagram Your Model
+
+Include a diagram of your model with `par` estimates and increasing the font size for the labels. 
+
+```{r}
+semPaths(model2.fit, whatLabels = "par", edge.label.cex = 1, layout = "spring")
+semPaths(model3.fit, whatLabels = "par", edge.label.cex = 1, layout = "spring")
+```
+
+## Model Comparison
+
+Compare your two models using the `anova()` function and the `aic` and `ecvi` fit measures. 
+
+```{r}
+anova(model.fit, model2.fit)
+anova(model.fit, model2.fit, model3.fit)
+```
+
+QUESTION: Which model is better? 
+ANSWER: Both are not the best models out there. But in comparison model.fit has better overall score. A model without demographic data was also tested. It's scores were the best from the existing models. Model3 has low df, aic amd bic scores.
+
+## Interpretation
+
+QUESTION: In this section, interpret your best model. You should explain the model predictions (i.e., X predicts Y, Y predicts Z), interpret the coefficients and explain if the paths are significant. What do the fit indices tell you about the fit of the model?
+
+Here's an example good answer:
+A student's expected grade was thought to influence their ratings on the fairness and appropriateness of grading in the course, which then influences their overall evaluation of the course. A student who is performing poorly in a course may perceive the grading to be unfair, which will then lower their evaluation of the course as a whole.
+
+The fit statistics for the model show excellent fits in NFI, TLI, CFI, RMR, and a good fit for RMSEA. The chi-square statistic is a little high, but this statistic is influenced by sample size. The path between expected grades to grading was found to be 0.41 (SE = 0.02). As student's expected grade increased, their perception/rating of grading and assignments also increased.  The relationship between grading and overall evaluation was 1.16 (SE = 0.02), indicating that as ratings of grading increased, overall evaluation also increased. 
+
+ANSWER: 
+
+There could be multiple reasons for a student's Withdrawal after a semester. The focus of this study was to check the effect of student's academics. Poor performace lowering the motivation to stay in school. Low motivation leading to withdrawal.
+
+The fit statistics for the model1 and model2 were not great. Having a negative TLI and bad standardized error ratings. Model3 on the other hand has good scores and low error values It's significantly improved from model and model2. Its AIC and BIC scores are better and has a lower chisq value and less degrees of freedom.
