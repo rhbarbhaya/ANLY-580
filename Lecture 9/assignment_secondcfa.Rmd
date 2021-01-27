@@ -1,0 +1,149 @@
+---
+title: "7 CFA: Second Order"
+author: "Rushabh BArbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Hierarchical CFA Practice Assignment
+
+## DASS - Depression, Anxiety, and Stress Scale
+
+The DASS is a measurement scale that examines the depression, anxiety, and stress of an individual. Here are the DASS-21 items:
+
+    1 I found it hard to wind down.
+    2 I was aware of dryness of my mouth.
+    3 I couldn't seem to experience any positive feeling at all.
+    4 I experienced breathing difficulty.
+    5 I found it difficult to work up the initiative to do things.
+    6 I tended to over-react to situations.
+    7 I experienced trembling (eg, in the hands).
+    8 I felt that I was using a lot of nervous energy.
+    9 I was worried about situations in which I might panic and make a fool of myself.
+    10 I felt that I had nothing to look forward to.
+    11 I found myself getting agitated.
+    12 I found it difficult to relax.
+    13 I felt down-hearted and blue.
+    14 I was intolerant of anything that kept me from getting on with what I was doing.
+    15 I felt I was close to panic.
+    16 I was unable to become enthusiastic about anything.
+    17 I felt I wasn't worth much as a person.
+    18 I felt that I was rather touchy.
+    19 I was aware of the action of my heart in the absence of physical exertion.
+    20 I felt scared without any good reason.
+    21 I felt that life was meaningless.
+
+The scale should be scored using the following latent variables:
+
+    Depression: Questions 3, 5, 10, 13, 16, 17, 21
+    Anxiety: Questions 2, 4, 7, 9, 15, 19, 20
+    Stress: 1, 6, 8, 11, 12, 14, 18
+
+## Load the Data and Libraries
+
+In this section, load the assignment data and the libraries you need for this assignment. 
+
+```{r}
+library(lavaan)
+library(semPlot)
+
+data = read.csv("assignment_secondcfa.csv")
+```
+
+## Build Models
+
+Create a three-factor model of the DASS as your measurement model.
+
+```{r}
+model1 = '
+depression =~ Q3 + Q5 + Q10 + Q13 + Q16 + Q17 + Q21
+anxiety =~ Q2 + Q4 + Q7 + Q9 + Q15 + Q19 + Q20
+stress =~ Q1 + Q6 + Q8 + Q11 + Q12 + Q14 + Q18 
+'
+```
+
+Create a second-order model of the DASS with one general factor that predicts depression, anxiety, and stress. 
+
+```{r}
+model2 = '
+depression =~ Q3 + Q5 + Q10 + Q13 + Q16 + Q17 + Q21
+anxiety =~ Q2 + Q4 + Q7 + Q9 + Q15 + Q19 + Q20
+stress =~ Q1 + Q6 + Q8 + Q11 + Q12 + Q14 + Q18
+global =~ depression + anxiety + stress
+'
+```
+
+Create a bi-factor model of the DASS with one general factor that predicts the items on the DASS. 
+
+```{r}
+model.bi = '
+depression =~ Q3 + Q5 + Q10 + Q13 + Q16 + Q17 + Q21
+anxiety =~ Q2 + Q4 + Q7 + Q9 + Q15 + Q19 + Q20
+stress =~ Q1 + Q6 + Q8 + Q11 + Q12 + Q14 + Q18 
+global =~ Q3 + Q5 + Q10 + Q13 + Q16 + Q17 + Q21 + Q2 + Q4 + Q7 + Q9 + Q15 + Q19 + Q20 + Q1 + Q6 + Q8 + Q11 + Q12 + Q14 + Q18
+'
+```
+
+## Analyze Models
+
+Analyze the measurement model of the DASS. 
+
+```{r}
+model1.fit = cfa(model1, data = data)
+```
+
+Analyze the second-order model of the DASS. 
+
+```{r}
+model2.fit = cfa(model2, data = data)
+```
+
+Analyze the bi-factor model of the DASS. You will need to add `check.gradient = F` to the cfa function to have this model converge correctly. 
+
+```{r}
+model.bi.fit = cfa(model.bi, data = data, check.gradient = F, std.lv = T, orthogonal = T)
+```
+
+Oh no! Your model has a negative variance. This result means this model hasn't run correctly. We will deal with these more later, so ignore it for now. 
+
+## Summarize Models
+
+Summarize the measurement model of the DASS. 
+
+```{r}
+summary(model1.fit, standardized = T, rsquare = T, fit.measures = T)
+fitMeasures(model1.fit)
+```
+
+Summarize the second-order model of the DASS. 
+
+```{r}
+summary(model2.fit, standardized = T, rsquare = T, fit.measures = T)
+fitMeasures(model2.fit)
+```
+
+Summarize the bi-factor model of the DASS. 
+
+```{r}
+summary(model.bi.fit, standardized = T, rsquare = T, fit.measures = T)
+fitMeasures(model.bi.fit)
+```
+
+QUESTION: Does the measurement model (the first one) appear to be a good model? Use both the loadings and fit indices to answer this Question. 
+ANSWER: All the variances are positive; standard loadings are greater than $\pm$ 0.3; Error values are don't look to high. SRMS is also quite low; All other fit indices also look decently good. Overall it's a good model.
+
+QUESTION: Are the correlations high in the measurement model to support a second order model? 
+ANSWER: Yes
+
+QUESTION: Examine the summaries of each model. Does a second order or bi-factor model appear to fit the DASS better? 
+ANSWER: Second order model is a better model as compared to bi-factor model. There are a lot of loadings which have values < $\pm$ 0.3
+
+QUESTION: Do the Questions load on to the domain specific factors in the bi-factor model? 
+ANSWER: No
+
+QUESTION: Do the Questions load on to the general factor in the bi-factor model?
+ANSWER: No
