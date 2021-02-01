@@ -178,21 +178,13 @@ POI =~ piccomp + block + matrixreason
 PSI =~ symbolsearch + digsym
 IQ =~ inform + simil + vocab + compreh + digspan + arith + piccomp + block + matrixreason + symbolsearch + digsym
 digsym ~~ 133.1499*digsym
-digspan ~~ 16.54232*digspan
-matrixreason ~~ 6.128749*matrixreason
-piccomp ~~ 4.870985*piccomp
-arith ~~ 8.929757*arith
-compreh ~~ 13.86779*compreh
-simil ~~ 7.818606*simil
-vocab ~~ 44.0789*vocab
 block ~~ 53.90284*block
-inform ~~ 18.56018*inform
 symbolsearch ~~ 14.18153*symbolsearch
 '
 bifactor.fit = cfa(bifactor, data = data2, check.gradient = F)
-inspect(bifactor.fit, "cov.lv")
-inspect(bifactor.fit, "cor.lv")
-# summary(bifactor.fit, standardized = T)
+summary(bifactor.fit, standardized = T, rsquare = T, fit.measures = T)
+semPaths(bifactor.fit, whatLabels = 'std', edge.label.cex = 1, layout = 'tree')
+fitmeasures(bifactor.fit)
 ```
 
 QUESTION: Does the model support the domain specific areas, after accounting for the generalized latent variable?
@@ -203,16 +195,27 @@ ANSWER:
 For this model, you should build a three-factor version of the IQ scale where processing speed and perceptual organization are combined together, and working memory and verbal comp are two separate factors. Use the combined perceptual/processing speed to predict working memory, and working memory to predict verbal comp (i.e., PSI/POI --> WMI --> VCI). Include all four steps of modeling: build, analyze, summarize, diagram. 
 
 ```{r}
-
+fullSEM = '
+PI =~ piccomp + block + matrixreason + symbolsearch + digsym
+WMI =~ digspan + arith
+VCI =~ inform + simil + vocab + compreh
+WMI ~ PI
+VCI ~ WMI
+'
+fullSEM.fit = sem(fullSEM, data = data2)
+summary(fullSEM.fit, standardized = T, rsquare = T, fit.measures = T)
+semPaths(fullSEM.fit, whatLabels = "std", layout = "tree", edge.label.cex = 1)
+fitmeasures(fullSEM.fit)
+modificationindices(fullSEM.fit, sort. = T)
 ```
 
 QUESTION: Are there any non-significant paths in the structural model?
-ANSWER: 
+ANSWER: No
 
 QUESTION: How much variance are you accounting for in the structural model (use the r-squared section of the output)?
-ANSWER: 
+ANSWER: Not a lot. Some are high bit all the others are close enough
 
 ### Interpretation
 
 QUESTION: Overall, which model do you think best represents the data? How does IQ appear to be structured?
-ANSWER: 
+ANSWER: Sturctured equation one. It has good error indicices, low standard error. Most of the loadings were good.
