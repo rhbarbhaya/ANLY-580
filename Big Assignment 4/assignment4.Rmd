@@ -1,0 +1,209 @@
+---
+title: 'Assignment 4: MGCFA'
+author: "YOUR NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## MGCFA Assignment
+
+Participants were given the Purpose in Life Questionnaire to examine if they endorsed finding purpose in their life. The psychometric properties of the PIL are under debate, especially the relationship between assessment types. You will test the following two-factor model for differences between a randomized questionnaire and a non-randomized questionnaire. Here are the proposed question loadings:
+    
+- Exciting life: 1 2 5 8 9 11 12 16 19
+- Purposeful life: 3 4 6 7 10 13 17 18 20
+- Note: Several questions are not used, be sure to drop them first. 
+
+You can learn more about the individual questions by using the following code (not the same data, but this dataset includes the actual questions in the documentation). 
+
+```{r eval = F}
+library(learnSEM)
+?meaningdata
+```
+
+## Reverse Coding
+
+Reverse code the following questions: 2, 5, 7, 10, 17, 18, 19. Otherwise, assume the data is accurate. You can use `DF[ , COLUMN_NUMBERS] <- 8 - DF[ , COLUMN_NUMBERS]` to reverse code the items.
+
+```{r}
+library(lavaan)
+library(semPlot)
+
+data = read.csv("assignment4_data.csv", stringsAsFactors = T)
+data[, c(2,5,7,10,17,18,19)] = 8 - data[, c(2,5,7,10,17,18,19)]
+```
+
+## Missing values
+
+- Include a table that shows the missing data by person (summary of missingness by participant). 
+- Exclude all people who are missing more than 5% for the variables you are interested in.
+- Remember to use the data screening lecture to help you for this section of code.
+
+```{r}
+perMiss = function(x) {
+  sum(is.na(x))/length(x) * 100
+}
+missing = apply(data[,-1], 1, perMiss)
+table(missing)
+noMiss = subset(data, missing <= 5)
+summary(noMiss)
+```
+
+- Include the percent/proportion of data missing by column. 
+- Impute the missing values with mice for participants and columns with less than 5% of missing data. 
+
+```{r}
+colMissing = apply(noMiss[,-1], 2, perMiss)
+table(colMissing)
+colMis = subset(noMiss, missing <= 5)
+```
+
+## CFA Models
+
+In the next section, you will include the `overall.model`, the `cfa()`, and `summary()` for each step of the multigroup analysis. Use the class assignment to create these steps and a table of your results. You will use the `group` variable as your muligroup test. The random random group saw many meaning scales in a randomized order and randomized display of each item, while the random not group saw many randomized scales with a set order of each item within the scale. 
+
+## Overall Model
+
+```{r}
+data = colMis
+overall.model = '
+QQ =~ q1 + q2 + q3 + q4 + q5 + q6 + q7 + q8 + q9 + q10 + q11 + q12 + q13 + q14 + q15 + q16 + q17 + q18 + q19 + q20
+'
+overall.fit = cfa(model = overall.model, data = data, meanstructure = T)
+summary(overall.fit, standardized = T, rsquare = T, fit.measure = T)
+semPaths(overall.fit, whatLabels = "std", layout = "spring", edge.label.cex = 1)
+
+library(knitr)
+table_fit <- matrix(NA, nrow = 8, ncol = 6)
+colnames(table_fit) = c("Model", "X2", "df", "CFI", "RMSEA", "SRMR")
+table_fit[1, ] <- c("Overall Model", round(fitmeasures(overall.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Random Random
+
+```{r}
+random.random.fit = cfa(model = overall.model, data = data[data$group == "Random Random",], meanstructure = T)
+summary(random.random.fit, standardized = T, rsquare = T, fit.measure = T)
+semPaths(random.random.fit, whatLabels = "std", layout = "spring", edge.label.cex = 1)
+table_fit[2, ] <- c("Random Random Model", round(fitmeasures(random.random.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Random Not
+
+```{r}
+random.not.fit = cfa(model = overall.model, data = data[data$group == "Random Not",], meanstructure = T)
+summary(random.not.fit, standardized = T, rsquare = T, fit.measure = T)
+semPaths(random.not.fit, whatLabels = "std", layout = "spring", edge.label.cex = 1)
+table_fit[3, ] <- c("Random Not Model", round(fitmeasures(random.not.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Configural
+
+```{r}
+configural.fit = cfa(model = overall.model, data = data, meanstructure = T, group = "group")
+summary(configural.fit, standardized = T, rsquare = T, fit.measure = T)
+table_fit[4, ] <- c("Configural Model", round(fitmeasures(configural.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Metric
+
+```{r}
+metric.fit = cfa(model = overall.model, data = data, meanstructure = T, group = "group", group.equal = c("loadings"))
+summary(metric.fit, standardized = T, rsquare = T, fit.measure = T)
+table_fit[5, ] <- c("Metric Model", round(fitmeasures(metric.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Scalar
+
+```{r}
+scalar.fit = cfa(model = overall.model, data = data, meanstructure = T, group = "group", group.equal = c("loadings", "intercepts"))
+summary(scalar.fit, standardized = T, rsquare = T, fit.measure = T)
+table_fit[6, ] <- c("Scalar Model", round(fitmeasures(scalar.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+## Strict
+
+```{r}
+strict.fit = cfa(model = overall.model, data = data, meanstructure = T, group = "group", group.equal = c("loadings", "intercepts", "residuals"))
+summary(strict.fit, standardized = T, rsquare = T, fit.measure = T)
+table_fit[7, ] <- c("Strict Model", round(fitmeasures(strict.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+QUESTION: In looking at this complete table, do you have complete invariance or does it show a drop in fit? If you see a drop in fit, where does the fit change? 
+ANSWER: No, they are in acceptable range.
+
+## Partial Invariance
+
+If you answered that the model shows a drop in fit, find the items that would create a partially invariant model. Use the loop code from class to calculate each CFI and add the strongest parameter. Update your table to include the new model fit. If you saw invariant fit above, you can skip this section. 
+
+```{r}
+partial_syntax = paste(colnames(data)[2:21], "~~", colnames(data)[2:21])
+CFI_list  <- 1:length(partial_syntax)
+names(CFI_list) <- partial_syntax
+
+for (i in 1:length(partial_syntax)){
+  temp <- cfa(model = overall.model, 
+              data = data,
+              meanstructure = TRUE,
+              group = "group",
+              group.equal = c("loadings", "intercepts", "residuals"),
+              group.partial = partial_syntax[i])
+  CFI_list[i] <- fitmeasures(temp, "cfi")
+}
+which.max(CFI_list)
+partial.fit <- cfa(model = overall.model, data = data, meanstructure = T, group = "group", group.equal = c("loadings", "intercepts", "residuals"), group.partial = c("q20 ~~ q20"))
+summary(partial.fit, standardized = T, rsquare = T, fit.measure = T)
+table_fit[8, ] <- c("Partial Model", round(fitmeasures(partial.fit, 
+                                                 c("chisq", "df", "cfi",
+                                                   "rmsea", "srmr")),3))
+kable(table_fit)
+```
+
+QUESTION: Does the addition of these parameter(s) bring the model up to a partially invariant fit? 
+ANSWER: Yes, it does. RMSEA is also convering
+
+## Latent Means
+
+Using `lavPredict()` on the latent variables (i.e., no `ov`), calculate the latent means for our two groups. Using the `MOTE` library, calculate if there is a difference on the latent means. 
+
+```{r}
+library(MOTE)
+
+predicted_scores = lavPredict(partial.fit, type = "ov")
+table(data$group)
+predicted_scores <- as.data.frame(do.call(rbind, predicted_scores))
+predicted_scores$group <- c(rep("Random Not", 671), rep("Random Random", 354))
+predicted_scores$sum <- apply(predicted_scores[ , 1:20], 1, sum)
+head(predicted_scores)
+tapply(predicted_scores$sum, predicted_scores$group, mean)
+```
+
+QUESTION: Is there a difference in groups on the latent means? We would consider d > .20 as a "significant" difference.
+ANSWER: Yes. There is a significant difference
+
+QUESTION: Overall, what would your interpretation of this multigroup analysis be? Is the scale ok to use in a randomized and not randomized way and say those results are comparable? (Should have more than a yes/no answer here).
+ANSWER:
