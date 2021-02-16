@@ -1,0 +1,80 @@
+---
+title: "Assignment 5: IRT"
+author: "Rushabh Barbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## IRT Assignment
+
+Participants were given the Life Purpose Questionnaire, which is a dichotomous version of the Purpose in Life Questionnaire. You will program an IRT model to determine what questions from the LPQ are helpful in discriminating between levels of purpose in life, which is related to depression, PTSD, and other measures of psychological problems. 
+
+Import the data and libaries here.
+
+```{r}
+library(ltm)
+library(mirt)
+
+LPQ.data = read.csv("assignment5_lpq.csv")
+PIL.data = read.csv("assignment5_pil.csv")
+```
+
+## 2PL of the LPQ
+
+Include a 2PL model of the LPQ, and print out the `coef()` to see difficulty and discrimination values. 
+
+```{r}
+lpq.model = ltm(LPQ.data ~ z1, IRT.param = T)
+coef(lpq.model)
+```
+
+Include the ICC plot of all items, along with the TIF (test curve) for the model.
+
+```{r}
+plot(lpq.model, type = "ICC")
+plot(lpq.model, type = "IIC", items = 0)
+```
+
+QUESTION: Which questions are bad discriminators? \
+ANSWER: 7, 8, 13, 14, 15, 17 and 18 are bad discrimators. 3 is less than 1 but it really close.
+
+QUESTION: Where do questions seem to be measuring purpose (the latent variable)? \
+ANSWER: q2, q4 and q9 are doing the most of the heavy lifting. \
+
+## GPCM for the PIL
+
+The LPQ is a modified version of the Purpose in Life Questionnaire to have dichotomous items. Let's compare the two scales by programming a Polytomous model of the PIL. 
+
+Include the generalized partial credit model of the PIL, and print out the `coef()` to view the item information. 
+
+```{r}
+PIL.data = na.omit(PIL.data)
+pil.gpcm = mirt(data = PIL.data, model = 1, type = "gpcm")
+summary(pil.gpcm)
+coef(pil.gpcm, IRTpars = T)
+```
+
+Include the ICC plot of all items, along with the TIF (test curve) for the model.
+
+```{r}
+plot(pil.gpcm, type = "trace")
+plot(pil.gpcm, type = "info")
+
+itemplot(pil.gpcm, type = "info", item = 20)
+```
+
+QUESTION: Do items appear to be ordered and choices all have a most likely ability? \
+ANSWER: Almost all are in order. Not all have equal likelihood. Not sue what going on with q15
+
+QUESTION: How many scale points should this scale have for items? \
+ANSWER: 10 or 11 questions
+
+QUESTION: Which items appear to be poor discriminators? \
+ANSWER: 7, 13, 16 are some bad ones.
+
+QUESTION: Explain differences/similarities between items on the LPQ and PIL. \
+ANSWER: Questions for LPQ seems to be "easier" as comapred to PIL. PIL is more towards a balanced set. Most of it's results are in the average range.

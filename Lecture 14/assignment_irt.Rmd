@@ -1,0 +1,124 @@
+---
+title: "12 IRT"
+author: "Rushabh Barbhaya"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Dichotomous IRT Class Assignment
+
+The included dataset includes data from an Educational Psychology Test scored as 0 (answered incorrectly) and 1 (answered correctly). Import the data (assignment_dirt.csv) and libraries below. 
+
+```{r}
+library(ltm)
+library(mirt)
+
+data = read.csv("assignment_dirt.csv", header = F)
+```
+
+## Two Parameter Logistic
+
+Include a 2PL calculated on just columns V2 through V5. Save the model as `edu.model`. Use the `coef()` function to examine the difficulty and discrimination parameters. 
+
+```{r}
+data = data[, 2:5]
+summary(data)
+
+edu.model = ltm(data ~ z1, IRT.param = T)
+coef(edu.model)
+```
+
+## 2PL Plots
+
+Include the ICC and TIF plots to view all the items and overall test information at once. 
+
+```{r}
+plot(edu.model, type = "ICC")
+plot(edu.model, type = "IIC")
+factor.scores(edu.model)
+person.fit(edu.model)
+item.fit(edu.model)
+```
+
+## Three Parameter Logistic
+
+Include the 3PL model as `edu2.model`. Use the `coef()` function to examine the difficulty, discrimination, and guessing parameters. 
+
+```{r}
+edu2.model= tpm(data, type = "latent.trait", IRT.param = T)
+options(scipen = 999)
+coef(edu2.model)
+```
+
+## 3PL Plots
+
+Include the ICC and TIF plots to view all the items and overall test information at once. 
+
+```{r}
+plot(edu2.model, type = "ICC")
+plot(edu2.model, type = "IIC")
+```
+
+## Compare Models
+
+Use the `anova()` function to compare the two models. 
+
+```{r}
+anova(edu.model, edu2.model)
+```
+
+QUESTION: Which model was better? Does it appear that the guessing parameter adds something useful to the model? 
+ANSWER: Both models don't seem to be much different from each other. If we have to answer, it's model 1
+
+QUESTION: Which items would be considered good items based on discrimination?
+ANSWER: Model2
+
+## Polytomous IRT 
+
+Load the assignment_mirt data below. You should reverse code items 5, 8, and 13 using `8 - columns` to ensure all items are in the same direction. The scale included examines evaluations of job candidates rated on 15 different qualities. 
+
+```{r}
+master = read.csv("assignment_mirt.csv")
+
+master$q5 = 8 - master$q5
+master$q8 = 8 - master$q8
+master$q13 = 8 - master$q13
+```
+
+## Graded Partial Credit Model
+
+Create a graded partial credit model to analyze the scale, and save this model as `gpcm.model`. Include the `coef()` for the model to help you answer the questions below. 
+
+```{r}
+gpcm.model = mirt(data = master, model = 1, itemtype = "gpcm")
+summary(gpcm.model)
+coef(gpcm.model, IRTpars = T)
+```
+
+## GPCM Plots
+
+Include the ICC and TIF plots to view all the items and overall test information at once. 
+
+```{r}
+plot(gpcm.model, type = "trace")
+plot(gpcm.model, type = "info")
+fscores(gpcm.model)
+
+itemplot(gpcm.model, 7, type = "info")
+```
+
+QUESTION: Examine the items. Do they appear ordered where each answer function is ordered correctly from 1 to 7?
+ANSWER: Averages are below 0
+
+QUESTION: Examine the items. Do we need all 7 items on this scale? (i.e., do they all have the probability of being the most likely answer choice?)
+ANSWER: Averages are below 0
+
+QUESTION: Which items indicate good discrimination? 
+ANSWER: 5, 8 and 13 are bad. Rest look good.
+        
+
+
