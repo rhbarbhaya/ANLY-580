@@ -1,0 +1,71 @@
+---
+title: 'Final Project'
+author: "STUDENT NAME"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective
+
+This project should allow you to apply the information you've learned in the course to a new dataset. The structure of the final project will be similar to a white paper. The goal of this project is for you to learn how to identify and address a problem that can be solved with structural equation modeling and communicate your findings in a report that others can read. You must use an analysis we learned in class. 
+
+## Instructions
+
+The final document should be a knitted HTML/PDF/Word document from a Markdown file. You will turn in the knitted document. Be sure to spell and grammar check your work! The following sections should be included: 
+
+## Introduction
+
+In one paragraph, introduce your research topic (the problem) and review how structural equation modeling may solve that problem. Be sure to answer these two questions: (1) Why does this topic matter and (2) What is the background knowledge that someone would need to understand the field or area that you have decided to investigate? If you include sources in this section, please be sure to cite them in APA style. Remember, you should write these sections in your own words. 
+
+## The Data
+
+In this section, describe the data you are modeling. You should explain where the data came from, what variables are included in this data, and how you are going to relate the variables in your model. If you are having trouble finding data, please ask for help. 
+
+## The Model
+
+In this section, describe the type of model you are using by detailing the analysis type (i.e., CFA, LGM, IRT) and the description of the analysis type (i.e., explain the diagram of the model in words).
+
+## The Analysis
+
+In this section, run your proposed model. The sections listed below should be included but are only the minimum, as each analysis may require a slightly different set of investigations. You can update, change, or compare models in this section as well. 
+
+### Data Screening
+
+### Build the Model
+
+- Create the model and run the analysis.
+
+### Examine the Fit/Summary
+
+- Check for Heywood cases. If you find them, fix them.
+
+### Examine Modification Indices
+
+- Do you have any paths that you should consider adding? 
+
+### Draw a semPlot
+
+## Discussion 
+
+In this section, explain what happened with your model. Did the model work? What did you have to modify or update to improve the model? Where there Heywood cases? What do the results of the model **mean** for your question or problem you are trying to solve? 
+
+## Credit Guidelines
+
+If working in a group, specify what each member of the group did. For each of the steps below, specify who did the work. If more than one member worked on the step, put names of everyone who worked on it.
+
+- Developed Research Question
+- Acquired Data
+- Analyzed Data
+- Researched Related Work
+- Wrote Introduction
+- Wrote Analysis/Results
+- Wrote Discussion
+- Revisions/Edits
+
+### References
+
+Include your references in APA style, if necessary. 

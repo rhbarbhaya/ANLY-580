@@ -1,0 +1,459 @@
+---
+title: "Final Project"
+author: "Rushabh Barbhaya"
+date: "2/15/2021"
+output: 
+  html_document:
+    number_sections: true
+bibliography: ["ref.bib"]
+biblio-style: "apalike"
+link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract
+The goal of this project was to check if age, religion, gender and previous voting preferences has an effect on how "you" vote in Brexit Referendum Vote. Multi-Group CFA was used to test out this theory. After applying those methods on the given data set, we could not come to a conclusion of singling out a particular question variable which might explain the brexit referendum voting outcome.
+
+---
+
+# Introduction
+People of a country were always divided by their political ideas. The division was quite small until a few years ago. To explain in a graphical format. If neural ideas are a center line, the division in question is the difference in current political right to current political left. See the image below for reference [@ghosh_2019]. Pundits warn, if the division continues to grow, it might cause a physical divide in the population. This trend seems to be occurring across the globe [@thomas_carothers_2019]. \
+\
+The reason for choosing Multi-Group Confirmatory Factor Analysis (MGCFA) is simple, in our lecture we learnt that invariance = equivalence. MGCFA satisfies the conditions mentioned in the lecture. Items act the same across the group. Factor structure is same across groups. Paths are equal across the groups. Latent means are almost equal across the groups. \
+\
+This project aims to if previous vote, sex, religion and age group give variance in the Brexit voting preference. The central idea is to debunk the theory of "natural" alignment to a political party. Individual of a certain Race/Ethnicity/Age will align with a political party. \
+\
+![Political Division over the years in the United States](https://www.visualcapitalist.com/wp-content/uploads/2019/09/us-political-polarization-crop.gif)
+
+## About the data
+The date is provided by **Dr. Erin M. Buchanan, Harrisburg University of Science and Technology** and it's explanation from a study website by Bob Altemeyer, it be found [here](http://www.panojohnson.com/automatons/rwa-scale.xhtml) [@altemeyer_johnson_2020]. The data is a scientific study of where do "you" lie on the Right Wing Authoritarians (RWA) scale [@altemeyer_2006] \
+
+Summary of the data after dropping unused columns.
+```{r masterset, warning=FALSE}
+library(lavaan)
+library(semPlot)
+library(knitr)
+
+scoring = function(model){
+  round(fitmeasures(model, c("chisq", "df", "cfi", "rmsea", "srmr")),3)
+}
+
+master = read.csv("study4.csv", stringsAsFactors = T)
+master = master[, c(2,8,9,12,15,16,17,18,19,39:60)]
+summary(master)
+```
+
+## Remove unknowns/outliers
+-   "Remove" column indicates the data points which shouldn't be considered. Those records were recorded within a minute, which is not possible for this survey. \
+-   Removing "NoVote" and "Spoil" from "intendReferendumVote" as we are only interested in how they vote. \
+-   Reverse coding is not needed for this dataset, it's recorded in the correct order. [@altemeyer_2006] \
+-   All the records were in the scale, no check for outliers was necessary. \
+
+```{r cleanerset}
+data = subset(master, master$Remove == "Keep")
+data = subset(data, data$intendReferendumVote != "Spoil")
+data = subset(data, data$intendReferendumVote != "NoVote")
+data = droplevels(data)
+data$Vote = as.numeric(data$intendReferendumVote)-1
+summary(data)
+```
+
+---
+
+# Overall Model
+For the theory we want to test, all the question are tied to a variable and that variable will predict the voting preference.
+```{r Brexit, echo=FALSE}
+brexit.model = '
+Q =~ Q1 + Q2 + Q3 + Q4 + Q5 + Q6 + Q7 + Q8 + Q9 + Q10 + Q11 + Q12 + Q13 + Q14 + Q15 + Q16 + Q17 + Q18 + Q19 + Q20 + Q21 + Q22
+Vote ~ Q
+'
+brexit.fit = cfa(model = brexit.model, data = data, meanstructure = T)
+semPaths(brexit.fit)
+```
+
+---
+
+# Sex Based Model
+Checking to see if Gender has any role on the voting preference. \
+
+## Prepare Data for Gender Based Model
+-   Building a one-factor model for this analysis. \
+-   There are 2 factors in this model, Male and Female. \
+
+### Female Model 
+```{r GenderFemale}
+gender.fit.female = cfa(model = brexit.model, data = data[data$sex == "Female",], meanstructure = T)
+```
+
+### Male Model
+```{r GenderMale}
+gender.fit.male = cfa(model = brexit.model, data = data[data$sex == "Male",], meanstructure = T)
+```
+
+### Gender Configural Model
+```{r GenderConfig}
+gender.configural.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "sex")
+```
+
+### Gender Metric Model
+```{r GenderMetric}
+gender.metric.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "sex", group.equal = c("loadings"))
+```
+
+### Gender Scalar Model
+```{r GenderScalar}
+gender.scalar.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "sex", group.equal = c("loadings", "intercepts"))
+```
+
+### Gender Strict Model
+```{r GenderStrict}
+gender.strict.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "sex", group.equal = c("loadings", "intercepts", "residuals"))
+```
+
+### Gender Partial Invariance Model
+```{r GenderPartial}
+gender_partial_syntax = paste(colnames(data)[10:31], "~~", colnames(data)[10:31])
+gender_CFI_list  <- 1:length(gender_partial_syntax)
+names(gender_CFI_list) <- gender_partial_syntax
+
+for (i in 1:length(gender_partial_syntax)){
+  temp <- cfa(model = brexit.model, 
+              data = data,
+              meanstructure = TRUE,
+              group = "sex",
+              group.equal = c("loadings", "intercepts", "residuals"),
+              group.partial = gender_partial_syntax[i])
+  gender_CFI_list[i] <- fitmeasures(temp, "cfi")
+}
+
+gender.partial.fit <- cfa(model = brexit.model, data = data, meanstructure = TRUE, group = "sex", group.equal = c("loadings", "intercepts", "residuals"), group.partial = names(which.max(gender_CFI_list)))
+```
+
+### Gender Output Matrix
+-   None of them are great predictors of voting patterns, it can be safely concluded that gender doesn't play a role in any apparent pattern in Brexit Referendum Voting preference. \
+-   The model for Male was slightly skewed, but not significant enough to determine anything. \
+```{r GenderSummary, echo=FALSE}
+gender_table_fit = matrix(NA, nrow = 8, ncol = 6)
+colnames(gender_table_fit) = c("Model", "X2", "df", "CFI", "RMSEA", "SRMR")
+gender_table_fit[1, ] = c("Overall Model", scoring(brexit.fit))
+gender_table_fit[2, ] = c("Female Gender Model", scoring(gender.fit.female))
+gender_table_fit[3, ] = c("Male Gender Model", scoring(gender.fit.male))
+gender_table_fit[4, ] = c("Gender Configural Model", scoring(gender.configural.fit))
+gender_table_fit[5, ] = c("Gender Metric Model", scoring(gender.metric.fit))
+gender_table_fit[6, ] = c("Gender Scalar Model", scoring(gender.scalar.fit))
+gender_table_fit[7, ] = c("Gender Strict Model", scoring(gender.strict.fit))
+gender_table_fit[8, ] = c("Gender Partial Invariance Model", scoring(gender.partial.fit))
+kable(gender_table_fit, caption = "Gender CFA Model")
+```
+
+---
+
+# Religion Based Model
+Checking to see if religion plays a role in voting preference. \
+
+## Preparing Data for Religion
+-   There are 5 factors on Religion Column. They are only named as 1, 2, 3, 4 and 5. \
+-   It was not necessary to figure out the religion names as it doesn't concern the model. \
+
+### Religion(1) Model 
+```{r Religion(1)}
+rel.one.model = cfa(model = brexit.model, data = data[data$religion == 1,], meanstructure = T)
+```
+
+### Religion(2) Model 
+```{r Religion(2)}
+rel.two.model = cfa(model = brexit.model, data = data[data$religion == 2,], meanstructure = T)
+```
+
+### Religion(3) Model 
+```{r Religion(3)}
+rel.three.model = cfa(model = brexit.model, data = data[data$religion == 3,], meanstructure = T)
+```
+
+### Religion(4) Model 
+```{r Religion(4)}
+rel.four.model = cfa(model = brexit.model, data = data[data$religion == 4,], meanstructure = T)
+```
+
+### Religion(5) Model 
+```{r Religion(5)}
+rel.five.model = cfa(model = brexit.model, data = data[data$religion == 5,], meanstructure = T)
+```
+
+### Religion Configural Model
+```{r ReligionConfig}
+rel.configural.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "religion")
+```
+
+### Religion Metric Model
+```{r ReligionMetric}
+rel.metric.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "religion", group.equal = c("loadings"))
+```
+
+### Religion Scalar Model
+```{r ReligionScalar}
+rel.scalar.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "religion", group.equal = c("loadings", "intercepts"))
+```
+
+### Religion Strict Model
+```{r ReligionStrict}
+rel.strict.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "religion", group.equal = c("loadings", "intercepts", "residuals"))
+```
+
+### Religion Partial Invariance Model
+```{r ReligionPartial}
+rel_partial_syntax = paste(colnames(data)[10:31], "~~", colnames(data)[10:31])
+rel_CFI_list  <- 1:length(rel_partial_syntax)
+names(rel_CFI_list) <- rel_partial_syntax
+
+for (i in 1:length(rel_partial_syntax)){
+  temp <- cfa(model = brexit.model, 
+              data = data,
+              meanstructure = TRUE,
+              group = "religion",
+              group.equal = c("loadings", "intercepts", "residuals"),
+              group.partial = rel_partial_syntax[i])
+  rel_CFI_list[i] <- fitmeasures(temp, "cfi")
+}
+
+rel.partial.fit <- cfa(model = brexit.model, data = data, meanstructure = TRUE, group = "religion", group.equal = c("loadings", "intercepts", "residuals"), group.partial = names(which.max(rel_CFI_list)))
+```
+
+### Religion Output Matrix
+-   None of them are great predictors of voting patterns, it can be safely concluded that Religion doesn't play a role in any apparent pattern in Brexit Referendum Vote \
+-   Results from Religion's 1 and 2 are slightly monotonous but agagin, nothing conclusive. \
+```{r ReligionSummary, echo=FALSE}
+Religion_table_fit = matrix(NA, nrow = 11, ncol = 6)
+colnames(Religion_table_fit) = c("Model", "X2", "df", "CFI", "RMSEA", "SRMR")
+Religion_table_fit[1, ] = c("Overall Model", scoring(brexit.fit))
+Religion_table_fit[2, ] = c("Religion(1) Model", scoring(rel.one.model))
+Religion_table_fit[3, ] = c("Religion(2) Model", scoring(rel.two.model))
+Religion_table_fit[4, ] = c("Religion(3) Model", scoring(rel.three.model))
+Religion_table_fit[5, ] = c("Religion(4) Model", scoring(rel.four.model))
+Religion_table_fit[6, ] = c("Religion(5) Model", scoring(rel.five.model))
+Religion_table_fit[7, ] = c("Religion Configural Model", scoring(rel.configural.fit))
+Religion_table_fit[8, ] = c("Religion Metric Model", scoring(rel.metric.fit))
+Religion_table_fit[9, ] = c("Religion Scalar Model", scoring(rel.scalar.fit))
+Religion_table_fit[10, ] = c("Religion Strict Model", scoring(rel.strict.fit))
+Religion_table_fit[11, ] = c("Religion Partial Invariance Model", scoring(rel.partial.fit))
+kable(Religion_table_fit, caption = "Religion CFA Model")
+```
+
+---
+
+# Age Group Based Model
+Checking to see if age groups play a role in voting preference. \
+
+## Preparing Data for Age Group Analysis
+-   There are 6 factors in AgeGroup; Age 18-24, Age 25-34, Age 35-44, Age 45-54, Age 55-64, and Age 65+
+
+### Age Group "Age 18-24" Model 
+```{r AgeGroup1}
+age.one.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 18-24",], meanstructure = T)
+```
+
+### Age Group "Age 25-34" Model 
+```{r AgeGroup2}
+age.two.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 25-34",], meanstructure = T)
+```
+
+### Age Group "Age 35-44" Model 
+```{r AgeGroup3}
+age.three.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 35-44",], meanstructure = T)
+```
+
+### Age Group "Age 45-54" Model 
+```{r AgeGroup4}
+age.four.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 45-54",], meanstructure = T)
+```
+
+### Age Group "Age 55-64" Model 
+```{r AgeGroup5}
+age.five.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 55-64",], meanstructure = T)
+```
+
+### Age Group "Age 65+" Model 
+```{r AgeGroup6}
+age.six.fit = cfa(model = brexit.model, data = data[data$ageGroup6Text == "Age 65+",], meanstructure = T)
+```
+
+### Age Group Configural Model
+```{r AgeGroupConfig}
+age.configural.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "ageGroup6Text")
+```
+
+### Age Group Metric Model
+```{r AgeGroupMetric}
+age.metric.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "ageGroup6Text", group.equal = c("loadings"))
+```
+
+### Age Group Scalar Model
+```{r AgeGroupScalar}
+age.scalar.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "ageGroup6Text", group.equal = c("loadings", "intercepts"))
+```
+
+### Age Group Strict Model
+```{r AgeGroupStrict}
+age.strict.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "ageGroup6Text", group.equal = c("loadings", "intercepts", "residuals"))
+```
+
+### Age Group Partial Invariance Model
+```{r AgeGroupPartial}
+age_partial_syntax = paste(colnames(data)[10:31], "~~", colnames(data)[10:31])
+age_CFI_list  <- 1:length(age_partial_syntax)
+names(age_CFI_list) <- age_partial_syntax
+
+for (i in 1:length(age_partial_syntax)){
+  temp <- cfa(model = brexit.model, 
+              data = data,
+              meanstructure = TRUE,
+              group = "ageGroup6Text",
+              group.equal = c("loadings", "intercepts", "residuals"),
+              group.partial = age_partial_syntax[i])
+  age_CFI_list[i] <- fitmeasures(temp, "cfi")
+}
+
+age.partial.fit <- cfa(model = brexit.model, data = data, meanstructure = TRUE, group = "ageGroup6Text", group.equal = c("loadings", "intercepts", "residuals"), group.partial = names(which.max(age_CFI_list)))
+```
+
+### Age Group Output Matrix
+-   None of them are great predictors of voting patterns, it can be safely concluded that Age Group doesn't play a role in any apparent pattern in Brexit Referendum Vote. \
+-   Similar results across the board. Nothing significant to conclude our theory of voting preference being informed by age. \
+
+```{r AgeGroupSummary, echo=FALSE}
+age_table_fit = matrix(NA, nrow = 12, ncol = 6)
+colnames(age_table_fit) = c("Model", "X2", "df", "CFI", "RMSEA", "SRMR")
+age_table_fit[1, ] = c("Overall Model", scoring(brexit.fit))
+age_table_fit[2, ] = c("Age Group (18-24) Model", scoring(age.one.fit))
+age_table_fit[3, ] = c("Age Group (25-34) Model", scoring(age.two.fit))
+age_table_fit[4, ] = c("Age Group (35-44) Model", scoring(age.three.fit))
+age_table_fit[5, ] = c("Age Group (45-54) Model", scoring(age.four.fit))
+age_table_fit[6, ] = c("Age Group (55-64) Model", scoring(age.five.fit))
+age_table_fit[7, ] = c("Age Group (65+) Model", scoring(age.six.fit))
+age_table_fit[8, ] = c("Age Group Configural Model", scoring(age.configural.fit))
+age_table_fit[9, ] = c("Age Group Metric Model", scoring(age.metric.fit))
+age_table_fit[10, ] = c("Age Group Scalar Model", scoring(age.scalar.fit))
+age_table_fit[11, ] = c("Age Group Strict Model", scoring(age.strict.fit))
+age_table_fit[12, ] = c("Age Group Partial Invariance Model", scoring(age.partial.fit))
+kable(age_table_fit, caption = "Age Group CFA Model")
+```
+
+---
+
+# Previous Vote Preference Based Model
+
+## Preparing Data for Previous Vote Analysis
+-   There are 8 factors in PreviousVote column: Con, Cymru, Green, Labour, LibDem, NoVote, SNP, and UKIP \
+-   Dropping CYMRU as there are not enough data points for the analysis \
+
+### UKIP Model 
+```{r UKIP}
+data = subset(data, data$previousVote != "Cymru")
+data = droplevels(data)
+UKIP.fit = cfa(model = brexit.model, data = data[data$previousVote == "UKIP",], meanstructure = T)
+```
+
+### SNP Model 
+```{r SNP}
+SNP.fit = cfa(model = brexit.model, data = data[data$previousVote == "SNP",], meanstructure = T)
+```
+
+### NoVote Model 
+```{r NoVote}
+NoVote.fit = cfa(model = brexit.model, data = data[data$previousVote == "NoVote",], meanstructure = T)
+```
+
+### LibDem Model 
+```{r LibDem}
+LibDem.fit = cfa(model = brexit.model, data = data[data$previousVote == "LibDem",], meanstructure = T)
+```
+
+### Labour Model 
+```{r Labour}
+Labour.fit = cfa(model = brexit.model, data = data[data$previousVote == "Labour",], meanstructure = T)
+```
+
+### Green Model 
+```{r Green}
+Green.fit = cfa(model = brexit.model, data = data[data$previousVote == "Green",], meanstructure = T)
+```
+
+### Con Model 
+```{r Con}
+Con.fit = cfa(model = brexit.model, data = data[data$previousVote == "Con",], meanstructure = T)
+```
+
+### PreviousVote Configural Model
+```{r PreviousVoteConfig}
+pv.configural.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "previousVote")
+```
+
+### PreviousVote Metric Model
+```{r PreviousVoteMetric}
+pv.metric.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "previousVote", group.equal = c("loadings"))
+```
+
+### PreviousVote Scalar Model
+```{r PreviousVoteScalar}
+pv.scalar.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "previousVote", group.equal = c("loadings", "intercepts"))
+```
+
+### PreviousVote Strict Model
+```{r PreviousVoteStrict}
+pv.strict.fit = cfa(model = brexit.model, data = data, meanstructure = T, group = "previousVote", group.equal = c("loadings", "intercepts", "residuals"))
+```
+
+### previous Vote Invariance Model
+```{r previousVote}
+pv_partial_syntax = paste(colnames(data)[10:31], "~~", colnames(data)[10:31])
+pv_CFI_list  <- 1:length(pv_partial_syntax)
+names(pv_CFI_list) <- pv_partial_syntax
+
+for (i in 1:length(pv_partial_syntax)){
+  temp <- cfa(model = brexit.model, 
+              data = data,
+              meanstructure = TRUE,
+              group = "previousVote",
+              group.equal = c("loadings", "intercepts", "residuals"),
+              group.partial = pv_partial_syntax[i])
+  pv_CFI_list[i] <- fitmeasures(temp, "cfi")
+}
+
+pv.partial.fit <- cfa(model = brexit.model, data = data, meanstructure = TRUE, group = "previousVote", group.equal = c("loadings", "intercepts", "residuals"), group.partial = names(which.max(pv_CFI_list)))
+```
+
+### Previous Vote Output Matrix
+-   None of them are great predictors of voting patterns, it can be safely concluded that Previous Voting Preference doesn't play a role in any apparent pattern in Brexit Referendum Vote. \
+-   Previous Voting preference is not a good indicator of Brexit Voting preference. \
+```{r PVSummary, echo=FALSE}
+pv_table_fit = matrix(NA, nrow = 13, ncol = 6)
+colnames(pv_table_fit) = c("Model", "X2", "df", "CFI", "RMSEA", "SRMR")
+pv_table_fit[1, ] = c("Overall Model", scoring(brexit.fit))
+pv_table_fit[2, ] = c("UKIP Model", scoring(UKIP.fit))
+pv_table_fit[3, ] = c("SNP Model", scoring(SNP.fit))
+pv_table_fit[4, ] = c("NoVote Model", scoring(NoVote.fit))
+pv_table_fit[5, ] = c("LibDem Model", scoring(LibDem.fit))
+pv_table_fit[6, ] = c("Labour Model", scoring(Labour.fit))
+pv_table_fit[7, ] = c("Green Model", scoring(Green.fit))
+pv_table_fit[8, ] = c("Con Model", scoring(Con.fit))
+pv_table_fit[9, ] = c("Previous Vote Configural Model", scoring(pv.configural.fit))
+pv_table_fit[10, ] = c("Previous Vote Metric Model", scoring(pv.metric.fit))
+pv_table_fit[11, ] = c("Previous Vote Scalar Model", scoring(pv.scalar.fit))
+pv_table_fit[12, ] = c("Previous Vote Strict Model", scoring(pv.strict.fit))
+pv_table_fit[13, ] = c("Previous Vote Partial Model", scoring(pv.partial.fit))
+kable(pv_table_fit, caption = "Previous Vote Preference CFA Model")
+```
+
+---
+
+# Discussion
+
+The brexit referendum vote was almost a 50-50 vote. This model somewhat replicates that. We don't see a clear division. The results are all over the place. The fit measure scores are bad but not terrible, but they aren't good either. \
+As is the case with all analysis, more data could have normalized or spread out the variable to get maybe more accurate results. \
+
+---
+
+# References
